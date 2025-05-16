@@ -21,24 +21,24 @@ select concat(first_name, " ", last_name) as full_name from actor;
 `Egypt`に住んでいる客のフルネームを取得してください
 使用するテーブルは`customer`, `address`, `city `, `country `です。
 ```sql
-select 
-    concat(c.first_name, " ", c.last_name) as full_name, 
-    co.country 
-from 
-    customer as c 
-    join address as a on c.address_id=a.address_id 
-    join city on a.city_id=city.city_id 
-    join country as co on city.country_id=co.country_id 
+select
+    concat(c.first_name, " ", c.last_name) as full_name,
+    co.country
+from
+    customer as c
+    join address as a on c.address_id=a.address_id
+    join city on a.city_id=city.city_id
+    join country as co on city.country_id=co.country_id
 where co.country="Egypt";
 ```
 
 映画のタイトルと、その映画に出演している俳優の数を抽出して、出演している俳優の数が多い順に並び替え、上位10個だけ抽出してください。
 使用するテーブルは`film`と`film_actor`です。
 ```sql
-SELECT 
-    f.title, 
+SELECT
+    f.title,
     COUNT(fa.actor_id) as film_actor_count
-FROM 
+FROM
     film as f
     INNER JOIN film_actor as fa ON f.film_id = fa.film_id
 GROUP BY f.title
@@ -48,9 +48,9 @@ ORDER BY film_actor_count DESC LIMIT 10;
 合計180ドル以上支払った顧客の`last_name`を抽出してください。
 使用するテーブルは`customer`と`payment`です。
 ```sql
-select 
-    c.last_name, 
-    sum(p.amount) as total_payment 
+select
+    c.last_name,
+    sum(p.amount) as total_payment
 from
     customer as c
     join payment as p on p.customer_id=c.customer_id
@@ -60,9 +60,10 @@ having total_payment > 180;
 
 すべての期間で、売上の合計(`payment.amount`の合計)がトップ5のカテゴリ名を抽出してください。
 使用するテーブルは`payment`, `rental`, `inventory`, `film_category`, `category`です。
+
 ```sql
-select 
-    c.name, 
+select
+    c.name,
     sum(p.amount) as topsales
 from
     payment as p
@@ -77,9 +78,9 @@ limit 5;
 
 年別で売上順に全カテゴリを抽出してください。
 ```sql
-select 
-    year(p.payment_date) as payment_year, 
-    c.name, 
+select
+    year(p.payment_date) as payment_year,
+    c.name,
     sum(p.amount) as totalsales
 from
     payment as p
@@ -94,15 +95,15 @@ order by totalsales DESC;
 年別で売上がtop5のカテゴリを抽出してください。
 
 ```sql
-select * from 
+select * from
 (
-    select 
-        year(p.payment_date) as rental_year, 
-        c.name, 
+    select
+        year(p.payment_date) as rental_year,
+        c.name,
         sum(p.amount) as totalsales,
-        rank() OVER 
+        rank() OVER
         (
-            PARTITION BY YEAR(r.rental_date) 
+            PARTITION BY YEAR(r.rental_date)
             ORDER BY SUM(p.amount) DESC
         ) as ranking
     from
@@ -122,13 +123,13 @@ order by rental_year ASC, totalsales DESC;
 素朴には次のようなクエリを実行すればいいように思う。
 
 ```sql
-select 
-    year(p.payment_date) as rental_year, 
-    c.name, 
+select
+    year(p.payment_date) as rental_year,
+    c.name,
     sum(p.amount) as totalsales,
-    rank() OVER 
+    rank() OVER
     (
-        PARTITION BY YEAR(r.rental_date) 
+        PARTITION BY YEAR(r.rental_date)
         ORDER BY SUM(p.amount) DESC
     ) as ranking
 from
@@ -195,7 +196,7 @@ order by total_rental desc;
 2005年下半期に各スタッフが対応したレンタルの件数を抽出せよ。
 
 ```sql
-select 
+select
     s.staff_id,
     count(r.rental_id)
 from
@@ -208,7 +209,7 @@ group by s.staff_id
 最も多くの異なるジャンルの映画をレンタルした顧客を求め、その顧客の名前・メールアドレス・ジャンル数を表示してください。
 使用するテーブルは`rental`, `inventory`, `film_category`, `category`, `customer`です。
 ```sql
-select 
+select
     c.first_name,
     c.last_name,
     c.email,
@@ -240,13 +241,13 @@ with t as (
         join customer as c on p.customer_id=c.customer_id
     group by year, month, c.customer_id
 )
-select * 
-from 
+select *
+from
     t
 WHERE NOT EXISTS (
     SELECT 1
     FROM t AS t2
-    WHERE 
+    WHERE
         t.year = t2.year and t.month=t2.month
         AND t.total_paid < t2.total_paid
 );
@@ -264,7 +265,7 @@ WITH ranked_payments AS (
         c.last_name,
         SUM(p.amount) AS total_paid,
         RANK() OVER (
-            PARTITION BY YEAR(p.payment_date), MONTH(p.payment_date) 
+            PARTITION BY YEAR(p.payment_date), MONTH(p.payment_date)
             ORDER BY SUM(p.amount) DESC
         ) AS rank_in_month
     FROM
@@ -277,3 +278,49 @@ SELECT *
 FROM ranked_payments
 WHERE rank_in_month = 1;
 ```
+
+最も利益を上げたスタッフの名前と、そのスタッフが処理した支払いの合計金額を求めてください。ただし、同額で並ぶスタッフがいる場合は全員表示してください。
+使用するテーブルは`payment`, `staff`です。
+
+```sql
+with t as (
+    select
+        s.first_name,
+        s.last_name,
+        sum(p.amount) total_revenue
+    from
+        payment as p
+        join staff as s on p.staff_id=s.staff_id
+    group by s.staff_id
+)
+select *
+from t
+where
+    t.total_revenue=(select max(t.total_revenue) from t);
+```
+
+最も多くのレンタル収益を生み出した「映画ジャンル（category）」を1つ求めてください。そのジャンルに属するすべての映画のレンタル収益を合計して評価してください。同額で並ぶジャンルがある場合はすべて表示してください。
+使用するテーブルは`payment`, `rental`, `inventory`, `film_category`, `category`です。
+
+```sql
+with t as (
+    select
+        c.name,
+        sum(p.amount) as total_revenue
+    from
+        payment as p
+        join rental as r on p.rental_id = r.rental_id
+        join inventory as i on r.inventory_id = i.inventory_id
+        join film_category as fc on i.film_id = fc.film_id
+        join category as c on fc.category_id = c.category_id
+    group by c.category_id
+)
+select * from t
+where
+    t.total_revenue=(
+        select max(t.total_revenue) from t
+    );
+```
+
+「最も収益性の高い俳優」を求めよ。ただし、俳優が出演した映画すべてのレンタル収益を合計して評価し、最も合計が大きい俳優を1人（同率なら複数）求めること。
+使用するテーブルは`payment`, `rental`, `inventory`, `film_category`, `category`です。
