@@ -14,6 +14,7 @@
   - [並べ替え](#並べ替え)
   - [テーブル](#テーブル)
   - [エラー](#エラー)
+  - [デバッグ](#デバッグ)
 
 
 ## 配列
@@ -55,6 +56,8 @@ case 70 to 89
     msgbox "優"
 case 100
     msgbox "これは実行されない"
+case else
+    msgbox "それ以外"
 End Select
 ```
 
@@ -71,8 +74,6 @@ Format(Now, "yyyy")
 Year(Now)
 Replace(文字列, 変換元, 変換先)
 Split("2025-05-05","-")
-' デバッグ
-Stop
 ```
 
 ## ファイル操作
@@ -144,6 +145,7 @@ Range("a1").End(xlToLeft)
 ## フィルター
 autofilter
 ```vb
+range("a1").autofilter 1, "a"
 range("table1").autofilter 1, "a", xland, "b"
 ' Operator:=[xland, xlor, xlFilterValues]
 ary = Array("a","b","c")
@@ -194,7 +196,7 @@ property
 - HeaderRowRange: 見出し行
 - ListColumns: 各列
 - ListRows: 各行
-- Name	
+- Name
 - Range: 全てのセル
 - ShowAutoFilter: Boolean
 - ShowTotals: Boolean
@@ -261,3 +263,14 @@ hoge:
     Debug.Print Err.Description
 End Sub
 ```
+
+## デバッグ
+
+```vb
+' デバッグ
+Stop
+```
+- デバッグモード: 中断しているとき
+- イミディエイトウィンドウ
+  - ctrl + g
+  - ?変数名
