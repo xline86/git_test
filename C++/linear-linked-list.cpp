@@ -65,6 +65,67 @@ public:
     void operate(std::function<void(T&, int)> func);
     void operate(std::function<void(const T&, int)> func) const;
 
+    // イテレータクラス
+    class Iterator {
+        Node<T>* current;
+
+    public:
+        using iterator_category = std::forward_iterator_tag;
+        using value_type        = T;
+        using difference_type   = std::ptrdiff_t;
+        using pointer           = T*;
+        using reference         = T&;
+
+        Iterator(Node<T>* node) : current(node) {}
+
+        reference operator*() const { return current->data; }
+        pointer operator->() const { return &(current->data); }
+
+        Iterator& operator++() {
+            if (current) current = current->next;
+            return *this;
+        }
+
+        Iterator operator++(int) {
+            Iterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        bool operator==(const Iterator& other) const { return current == other.current; }
+        bool operator!=(const Iterator& other) const { return !(*this == other); }
+    };
+
+    // const イテレータクラス
+    class ConstIterator {
+        const Node<T>* current;
+
+    public:
+        using iterator_category = std::forward_iterator_tag;
+        using value_type        = T;
+        using difference_type   = std::ptrdiff_t;
+        using pointer           = const T*;
+        using reference         = const T&;
+
+        ConstIterator(const Node<T>* node) : current(node) {}
+
+        reference operator*() const { return current->data; }
+        pointer operator->() const { return &(current->data); }
+
+        ConstIterator& operator++() {
+            if (current) current = current->next;
+            return *this;
+        }
+
+        ConstIterator operator++(int) {
+            ConstIterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        bool operator==(const ConstIterator& other) const { return current == other.current; }
+        bool operator!=(const ConstIterator& other) const { return !(*this == other); }
+    };
 };
 
 template <typename T>
@@ -242,6 +303,18 @@ void List<T>::operate(std::function<void(const T&, int)> func) const
         cur = cur->next;
     }
 }
+
+template <typename T>
+typename List<T>::Iterator begin() { return Iterator(head); }
+
+template <typename T>
+typename List<T>::Iterator end() { return Iterator(nullptr); }
+
+template <typename T>
+typename List<T>::ConstIterator cbegin() const { return ConstIterator(head); }
+
+template <typename T>
+typename List<T>::ConstIterator cend() const { return ConstIterator(nullptr); }
 
 // ---------------------------
 // Student Class
