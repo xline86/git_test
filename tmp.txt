@@ -1,0 +1,285 @@
+Option Explicit
+
+'-------------------------------
+' データから度数分布表を作成するマクロ
+'-------------------------------
+Sub CreateFrequencyTable()
+
+    Dim sourceWs As Worksheet
+    Dim freqWs As Worksheet
+    Dim dataRange As Range
+    Dim dataArray As Variant
+    Dim numData As Long
+    Dim numBins As Long
+    Dim minValue As Double, maxValue As Double
+    Dim binWidth As Double
+    Dim bins() As Double
+    Dim frequencies() As Long
+    Dim i As Long, j As Long
+   
+    ' データがあるワークシートを指定
+    Set sourceWs = ThisWorkbook.Worksheets("Sheet1")
+   
+    ' 度数分布表を出力するワークシートを指定
+    Set freqWs = ThisWorkbook.Worksheets("Sheet2")
+   
+    ' データ範囲を動的に取得 (A列の連続データ)
+    Set dataRange = sourceWs.Range("A1", sourceWs.Cells(sourceWs.Rows.Count, "A").End(xlUp))
+    dataArray = dataRange.Value
+   
+     ' データ数を取得
+    numData = UBound(dataArray, 1)
+   
+    ' スタージェスの公式で階級数を計算
+    numBins = WorksheetFunction.RoundUp(1 + WorksheetFunction.Log(numData, 2), 0)
+   
+    ' 階級幅を計算
+    binWidth = BIN_WIDTH((maxValue - minValue) / numBins)
+   
+    ' データの最小値・最大値を取得
+    With Application.WorksheetFunction
+        minValue = .Floor(.Min(dataRange), binWidth) - binWidth
+        maxValue = .Ceiling(.Max(dataRange), binWidth) + binWidth
+    End With
+   
+    ' 階級の上限値を計算
+    ReDim bins(1 To (maxValue - minValue) / binWidth)
+   
+    For i = 1 To numBins
+        bins(i) = minValue + binWidth * i
+    Next i
+   
+    ' 各階級にデータを振り分け
+    ReDim frequencies(1 To numBins)
+   
+    For i = 1 To numData
+        For j = 1 To numBins
+            If dataArray(i, 1) <= bins(j) Then
+                frequencies(j) = frequencies(j) + 1
+                Exit For
+            End If
+        Next j
+    Next i
+   
+    ' 度数分布表を出力
+    freqWs.Cells(1, 1).Value = "Bin Lower Limit"
+    freqWs.Cells(1, 2).Value = "Bin Upper Limit"
+    freqWs.Cells(1, 3).Value = "Frequency"
+   
+    For i = 1 To numBins
+        freqWs.Cells(i + 1, 1).Value = bins(i) - binWidth
+        freqWs.Cells(i + 1, 2).Value = bins(i)
+        freqWs.Cells(i + 1, 3).Value = frequencies(i)
+    Next i
+   
+End Sub
+
+
+'-------------------------------
+' 度数分布表からヒストグラムを作成するマクロ
+'-------------------------------
+Sub CreateHistogramChart()
+
+    Dim freqWs As Worksheet
+    Dim chartWs As Worksheet
+    Dim binRange As Range
+    Dim freqRange As Range
+    Dim chartObj As ChartObject
+    Dim chartWidth As Double, chartHeight As Double
+    Dim chartLeft As Double, chartTop As Double
+   
+    ' 度数分布表があるワークシートを指定
+    Set freqWs = ThisWorkbook.Worksheets("Sheet2")
+   
+    ' ヒストグラムを作成するワークシートを指定
+    Set chartWs = ThisWorkbook.Worksheets("ヒストグラム")
+   
+   
+    ' 度数分布表の範囲を取得
+    Set binRange = freqWs.Range("B2", freqWs.Cells(freqWs.Rows.Count, "B").End(xlUp))
+    Set freqRange = binRange.Offset(0, 1)
+   
+    ' チャートの位置とサイズを設定（ここを変更すれば位置とサイズを簡単に変えられる）
+    chartLeft = 50
+    chartTop = 50
+    chartWidth = 600
+    chartHeight = 400
+   
+    ' チャートを作成
+    Set chartObj = chartWs.ChartObjects.Add(Left:=chartLeft, Top:=chartTop, Width:=chartWidth, Height:=chartHeight)
+   
+    With chartObj.Chart
+        .ChartType = xlColumnClustered ' 縦棒グラフ
+        .SetSourceData Source:=Union(binRange, freqRange)
+       
+        ' 系列を設定
+        .SeriesCollection.NewSeries
+        .SeriesCollection(1).XValues = binRange
+        .SeriesCollection(1).Values = freqRange
+        .SeriesCollection(1).Name = "Frequency"
+       
+        ' タイトルや軸ラベルを設定
+        .HasTitle = True
+        .ChartTitle.Text = "ヒストグラム"
+        .Axes(xlCategory).HasTitle = True
+        .Axes(xlCategory).AxisTitle.Text = "Bin Upper Limit"
+        .Axes(xlValue).HasTitle = True
+        .Axes(xlValue).AxisTitle.Text = "Frequency"
+    End With
+
+End Sub
+
+
+Sub HISTOGRAM()
+   
+    Dim Target As Range
+    Dim Tmp(1 To 3)
+    Dim i
+
+    Application.ScreenUpdating = False
+   
+    Set Target = Selection ' データ範囲を格納
+   
+    With WorksheetFunction
+        Tmp(1) = BIN_WIDTH((.Max(Target) - .Min(Target)) / _
+            .RoundUp(1 + .Log(Target.Rows.Count, 2), 0)) 'スタージェスの公式
+        Tmp(2) = .Floor(.Min(Target), Tmp(1)) - Tmp(1)
+        Tmp(3) = .Ceiling(.Max(Target), Tmp(1)) + Tmp(1)
+    End With
+   
+    Worksheets.Add
+
+    ' 度数分布表の作成
+    Cells(1, 1).Value = "▼度数分布表"
+    Cells(2, 1).Value = "区間（下境界≦X＜上境界）"
+    Cells(2, 3).Value = "度数"
+    Cells(2, 4).Value = "最大度数"
+   
+    With WorksheetFunction
+        For i = 0 To (Tmp(3) - Tmp(2)) / Tmp(1) - 1
+            Cells(i + 3, 1).Value = Tmp(2) + Tmp(1) * i
+            Cells(i + 3, 2).Value = Tmp(2) + Tmp(1) * (i + 1)
+            Cells(i + 3, 3) = .CountIfs(Target, ">=" & Cells(i + 3, 1).Value, _
+                Target, "<" & Cells(i + 3, 2).Value)
+        Next
+        Cells(3, 4).Value = .Max(Range(Cells(3, 3), Cells(i + 3, 3)))
+    End With
+   
+    ' 度数分布表の書式設定
+    With Range("A2:B2")
+        .Merge
+        .HorizontalAlignment = xlCenter
+        .ShrinkToFit = True
+    End With
+    Range("C2:D2").HorizontalAlignment = xlCenter
+    Range("D2:D3").Borders.LineStyle = True
+    Range(Cells(2, 1), Cells(i + 2, 3)).Borders.LineStyle = True
+    Range(Cells(3, 1), Cells(i + 2, 2)).Borders(xlInsideVertical).LineStyle = False
+    With Range(Cells(3, 1), Cells(i + 2, 1))
+        .HorizontalAlignment = xlRight
+        .IndentLevel = 1
+    End With
+    With Range(Cells(3, 2), Cells(i + 2, 2))
+        .NumberFormatLocal = """～　""0"
+        .HorizontalAlignment = xlLeft
+    End With
+    ActiveWindow.DisplayGridlines = False
+   
+    ' グラフ作成
+    Range(Cells(2, 3), Cells(i + 2, 4)).Select
+    ActiveSheet.Shapes.AddChart(xlColumnClustered).Select ' 集合縦棒グラフを作成
+       
+    With ActiveChart
+        .HasLegend = False                      ' 凡例除去
+        .ChartGroups(1).GapWidth = 0            ' 間隔=0
+        With .SeriesCollection(1)
+            .AxisGroup = 2                      ' 柱→2軸
+            .Format.Fill.ForeColor.ObjectThemeColor = msoThemeColorAccent3 ' 柱の色→グレー
+            .Border.Color = vbWhite             ' 柱の外枠線色→白
+            .Border.Weight = xlThin             ' 柱外枠の太さ
+        End With
+        With .SeriesCollection(2)
+            .ChartType = xlXYScatter            ' 最大度数→散布図へ
+            .MarkerStyle = xlMarkerStyleNone    ' マーカーを不可視に
+        End With
+        With .Axes(xlCategory)
+            .MinimumScale = Tmp(2)              ' 軸スケール合わせ（最小値）
+            .MaximumScale = Tmp(3)              ' 軸スケール合わせ（最大値）
+            .MajorUnit = Tmp(1)                 ' 軸スケール合わせ（目盛り）
+            .CrossesAt = Tmp(2)                 ' 軸スケール合わせ（交点）
+        End With
+        With .Axes(xlValue, xlSecondary)
+            .TickLabelPosition = xlNone         ' 2軸ラベルを不可視に
+            .MajorTickMark = xlNone             ' 2軸目盛を不可視に
+        End With
+        .Parent.Top = Range("F2").Top           ' 位置調整（上端）
+        .Parent.Left = Range("F2").Left         ' 位置調整（左端）
+    End With
+    Range("F1").Value = "▼ヒストグラム"
+   
+    Application.ScreenUpdating = True
+
+End Sub
+
+' 階級幅を調整する
+Function BIN_WIDTH(h)
+
+    Dim N As Long
+    Dim Stp(2) ' 処理過程  step1 to 3
+    Dim Tmp ' 値
+   
+    Select Case h
+    Case Is <= 0
+        MsgBox "ERROR"
+        Exit Function
+   
+    Case Is >= 1 ' hが1以上の場合の処理
+        N = -1
+        Do
+            N = N + 1
+            Stp(0) = 10 ^ N
+            Stp(1) = h / Stp(0)
+        Loop Until Stp(1) <= 10
+        Tmp = Application.WorksheetFunction.MRound(h, Stp(0) * 5)
+        If Tmp = 0 Then
+            Tmp = Application.WorksheetFunction.MRound(h, Stp(0) * 1)
+        End If
+   
+    Case Is < 1 ' hが1より小さな場合の処理
+        N = -1
+        Do
+            N = N + 1
+            Stp(0) = 10 ^ N
+            Stp(1) = 1 / (Stp(0) * 10)
+            Stp(2) = h / Stp(1)
+        Loop Until Stp(2) >= 1
+        Tmp = Application.WorksheetFunction.MRound(h, Stp(1) * 5)
+        If Tmp = 0 Then
+            Tmp = Application.WorksheetFunction.MRound(h, Stp(1) * 1)
+        End If
+   
+    End Select
+   
+    BIN_WIDTH = Tmp
+
+End Function
+
+-=======================
+
+Sub Macro1()
+'
+' Macro1 Macro
+'
+
+'
+    ActiveSheet.ChartObjects("グラフ 1").Activate
+    ActiveChart.FullSeriesCollection(1).Select
+    ActiveChart.FullSeriesCollection(1).Points(6).Select
+    With Selection.Format.Fill
+        .Visible = msoTrue
+        .ForeColor.RGB = RGB(238, 0, 0)
+        .Transparency = 0
+        .Solid
+    End With
+    Range("E5").Select
+End Sub
